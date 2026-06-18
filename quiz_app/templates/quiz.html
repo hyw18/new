@@ -28,6 +28,7 @@
             <nav class="problem-nav" aria-label="문제 이동">
                 {% for item in problems %}
                     <a class="problem-link {% if loop.index == problem_number %}active{% endif %} {% if item.id in answered_ids %}answered{% endif %} {% if item.id in correct_ids %}correct{% endif %}"
+                       data-quiz-nav="true"
                        href="{{ url_for('quiz', index=loop.index0) }}">
                         {{ loop.index }}
                     </a>
@@ -105,10 +106,10 @@
 
                 <div class="quiz-actions">
                     {% if problem_number > 1 %}
-                        <a class="secondary-button compact" href="{{ url_for('quiz', index=problem_number - 2) }}">이전 문제</a>
+                        <a class="secondary-button compact" data-quiz-nav="true" href="{{ url_for('quiz', index=problem_number - 2) }}">이전 문제</a>
                     {% endif %}
                     {% if problem_number < total_problems %}
-                        <a class="secondary-button compact" href="{{ url_for('quiz', index=problem_number) }}">다음 문제</a>
+                        <a class="secondary-button compact" data-quiz-nav="true" href="{{ url_for('quiz', index=problem_number) }}">다음 문제</a>
                     {% endif %}
                     <form method="post" class="finish-form" data-unanswered-count="{{ unanswered_count }}">
                         <input type="hidden" name="index" value="{{ problem_number - 1 }}">
@@ -122,12 +123,37 @@
     <script>
         const timer = document.querySelector('[data-remaining-seconds]');
         const finishForm = document.querySelector('.finish-form');
+        const answerType = {{ problem.type|tojson }};
+        const savedAnswer = {{ saved_answer|tojson }};
+        const answerInput = document.querySelector('#answer');
+        const quizNavigationLinks = document.querySelectorAll('[data-quiz-nav]');
 
         function formatTime(totalSeconds) {
             const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
             const seconds = String(totalSeconds % 60).padStart(2, '0');
             return `${minutes}:${seconds}`;
         }
+
+        function hasUnsavedWrittenAnswer() {
+            if (!answerInput || answerType === 'multiple_choice') {
+                return false;
+            }
+
+            return answerInput.value !== savedAnswer;
+        }
+
+        quizNavigationLinks.forEach((link) => {
+            link.addEventListener('click', (event) => {
+                if (!hasUnsavedWrittenAnswer()) {
+                    return;
+                }
+
+                const ok = window.confirm('작성 중인 답안이 아직 제출되지 않았습니다. 다른 문제로 이동할까요?');
+                if (!ok) {
+                    event.preventDefault();
+                }
+            });
+        });
 
         if (timer) {
             let remainingSeconds = Number(timer.dataset.remainingSeconds);
