@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>개발 미션 | MBTI 궁합 코딩 퀴즈</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <main class="page">
+        <section class="card develop-card">
+            <div class="kicker">Final Mission</div>
+            <h1>개발 미션</h1>
+            <p class="lead">A, B, C 미션을 각각 풀어 제출하세요. 개발 점수는 세 미션 점수의 합산으로 계산됩니다.</p>
+
+            <div class="topbar">
+                <strong class="score-pill">개발 점수 {{ develop_score }} / {{ mission_max_score }}점</strong>
+                <form method="post" action="{{ url_for('save_result') }}" class="inline-form">
+                    <button type="submit" class="primary-button">최종 결과 확인</button>
+                </form>
+            </div>
+
+            {% if feedback %}
+                <div class="feedback {{ 'correct' if feedback.is_correct else 'wrong' }}">
+                    <strong>{{ feedback.message }}</strong>
+                    <p>이번 제출 점수: {{ feedback.score }}점</p>
+                </div>
+            {% endif %}
+
+            <div class="mission-stack">
+                {% for mission_id, mission in missions.items() %}
+                    <article class="mission-panel" id="mission-{{ mission_id }}">
+                        <div class="mission-heading">
+                            <span class="badge lv{{ mission_id|lower }}">Mission {{ mission_id }}</span>
+                            <strong class="score-pill">
+                                {{ develop_scores.get(mission_id, 0) }} / {{ mission.score }}점
+                            </strong>
+                        </div>
+                        <h2>{{ mission.title }}</h2>
+                        <p>{{ mission.question|replace('\n', '<br>')|safe }}</p>
+                        <ul class="criteria">
+                            {% for item in mission.criteria %}
+                                <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+
+                        <form method="post" class="answer-form">
+                            <input type="hidden" name="mission" value="{{ mission_id }}">
+                            <label for="answer-{{ mission_id }}">미션 {{ mission_id }} 코드</label>
+                            <textarea id="answer-{{ mission_id }}" name="answer" rows="10" placeholder="미션 {{ mission_id }}의 조건을 만족하는 코드를 작성하세요" required>{{ develop_answers.get(mission_id, '') }}</textarea>
+                            <button type="submit" class="primary-button">
+                                미션 {{ mission_id }} 제출
+                            </button>
+                        </form>
+                    </article>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+</body>
+</html>

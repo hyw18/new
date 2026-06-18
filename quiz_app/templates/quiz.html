@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ problem.title }} | MBTI 궁합 코딩 퀴즈</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <main class="page">
+        <section class="card quiz-card">
+            <div class="topbar">
+                <div>
+                    <span class="badge {{ problem.level|lower }}">{{ problem.level }}</span>
+                    <span class="muted">문제 {{ problem_number }} / {{ total_problems }}</span>
+                </div>
+                <div class="status-pills">
+                    <strong class="score-pill">현재 점수 {{ quiz_score }} / {{ quiz_max_score }}점</strong>
+                    <strong class="score-pill">힌트 {{ hint_used_count }} / {{ max_hints }}</strong>
+                    <strong class="score-pill timer" data-remaining-seconds="{{ remaining_seconds }}">30:00</strong>
+                </div>
+            </div>
+
+            <div class="progress" aria-label="진행률">
+                <div style="width: {{ progress }}%"></div>
+            </div>
+
+            <nav class="problem-nav" aria-label="문제 이동">
+                {% for item in problems %}
+                    <a class="problem-link {% if loop.index == problem_number %}active{% endif %} {% if item.id in answered_ids %}answered{% endif %} {% if item.id in correct_ids %}correct{% endif %}"
+                       href="{{ url_for('quiz', index=loop.index0) }}">
+                        {{ loop.index }}
+                    </a>
+                {% endfor %}
+            </nav>
+
+            {% if time_up %}
+                <div class="feedback wrong">
+                    <strong>제한 시간이 종료되었습니다.</strong>
+                    <p>퀴즈 답안 제출은 마감되었어요. 개발 미션으로 이동해 주세요.</p>
+                </div>
+                <form method="post">
+                    <input type="hidden" name="index" value="{{ problem_number - 1 }}">
+                    <input type="hidden" name="action" value="finish">
+                    <button type="submit" class="primary-button">개발 미션으로 이동</button>
+                </form>
+            {% else %}
+
+                <h1>{{ problem.title }}</h1>
+                <p class="question">{{ problem.question|replace('\n', '<br>')|safe }}</p>
+
+                {% if problem.code %}
+                    <pre class="code-block"><code>{{ problem.code }}</code></pre>
+                {% endif %}
+
+                <form method="post" class="answer-form">
+                    <input type="hidden" name="index" value="{{ problem_number - 1 }}">
+                    <input type="hidden" name="action" value="submit">
+
+                    {% if problem.type == 'multiple_choice' %}
+                        <div class="choices">
+                            {% for choice in problem.choices %}
+                                <label class="choice">
+                                    <input type="radio" name="answer" value="{{ choice }}" {% if saved_answer == choice %}checked{% endif %} required>
+                                    <span>{{ loop.index }}. {{ choice }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    {% elif problem.type == 'short_answer' %}
+                        <label for="answer">답안</label>
+                        <input id="answer" name="answer" type="text" placeholder="빈칸에 들어갈 답을 입력하세요" autocomplete="off" value="{{ saved_answer }}" required>
+                    {% else %}
+                        <label for="answer">코드 답안</label>
+                        <textarea id="answer" name="answer" rows="10" placeholder="조건을 만족하는 파이썬 코드를 작성하세요" required>{{ saved_answer }}</textarea>
+                    {% endif %}
+
+                    <button type="submit" class="primary-button">제출</button>
+                </form>
+
+                <form method="post" class="hint-form">
+                    <input type="hidden" name="index" value="{{ problem_number - 1 }}">
+                    <input type="hidden" name="action" value="hint">
+                    {% if hint_is_visible %}
+                        <div class="hint">
+                            <strong>힌트</strong>
+                            <p>{{ problem.hint|replace('\n', '<br>')|safe }}</p>
+                        </div>
+                    {% else %}
+                        <button type="submit" class="hint-button" {% if hint_used_count >= max_hints %}disabled{% endif %}>
+                            힌트 보기{% if hint_used_count >= max_hints %} 완료{% endif %}
+                        </button>
+                        {% if hint_used_count >= max_hints %}
+                            <p class="hint-limit">힌트 3회를 모두 사용했습니다.</p>
+                        {% endif %}
+                    {% endif %}
+                </form>
+
+                {% if feedback %}
+                    <div class="feedback {{ 'correct' if feedback.is_correct else 'wrong' }}">
+                        <strong>{{ '정답입니다!' if feedback.is_correct else '아쉬워요!' }}</strong>
+                        <p>정답: <code>{{ feedback.answer }}</code></p>
+                        <p>{{ feedback.explanation }}</p>
+                    </div>
+                {% endif %}
+
+                <div class="quiz-actions">
+                    {% if problem_number > 1 %}
+                        <a class="secondary-button compact" href="{{ url_for('quiz', index=problem_number - 2) }}">이전 문제</a>
+                    {% endif %}
+                    {% if problem_number < total_problems %}
+                        <a class="secondary-button compact" href="{{ url_for('quiz', index=problem_number) }}">다음 문제</a>
+                    {% endif %}
+                    <form method="post" class="finish-form" data-unanswered-count="{{ unanswered_count }}">
+                        <input type="hidden" name="index" value="{{ problem_number - 1 }}">
+                        <input type="hidden" name="action" value="finish">
+                        <button type="submit" class="primary-button">퀴즈 최종 제출</button>
+                    </form>
+                </div>
+            {% endif %}
+        </section>
+    </main>
+    <script>
+        const timer = document.querySelector('[data-remaining-seconds]');
+        const finishForm = document.querySelector('.finish-form');
+
+        function formatTime(totalSeconds) {
+            const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+            const seconds = String(totalSeconds % 60).padStart(2, '0');
+            return `${minutes}:${seconds}`;
+        }
+
+        if (timer) {
+            let remainingSeconds = Number(timer.dataset.remainingSeconds);
+            timer.textContent = formatTime(remainingSeconds);
+
+            const countdown = setInterval(() => {
+                remainingSeconds -= 1;
+                timer.textContent = formatTime(Math.max(remainingSeconds, 0));
+                if (remainingSeconds <= 0) {
+                    clearInterval(countdown);
+                    window.location.reload();
+                }
+            }, 1000);
+        }
+
+        if (finishForm) {
+            finishForm.addEventListener('submit', (event) => {
+                const unansweredCount = Number(finishForm.dataset.unansweredCount);
+                if (unansweredCount > 0) {
+                    const ok = window.confirm(`아직 미응답 문제가 ${unansweredCount}문제 있습니다. 그래도 최종 제출할까요?`);
+                    if (!ok) {
+                        event.preventDefault();
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

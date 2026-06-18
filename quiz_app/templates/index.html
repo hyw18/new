@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MBTI 궁합 코딩 퀴즈</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <main class="page">
+        <section class="card hero-card">
+            <div class="kicker">Flask Coding Experience</div>
+            <h1>MBTI 궁합 앱 코딩 퀴즈</h1>
+            <p class="lead">Flask와 파이썬 문법을 퀴즈로 풀고, MBTI 궁합 앱의 핵심 로직을 직접 개발해보세요.</p>
+
+            <form method="post" class="start-form">
+                <label for="nickname">닉네임</label>
+                <input id="nickname" name="nickname" type="text" placeholder="예: 하람" maxlength="20" required>
+                <button type="submit" class="primary-button">퀴즈 시작</button>
+            </form>
+
+            <div class="score-grid" aria-label="점수 체계">
+                <div>
+                    <strong>LV1</strong>
+                    <span>원점수 5점</span>
+                </div>
+                <div>
+                    <strong>LV2</strong>
+                    <span>원점수 15점</span>
+                </div>
+                <div>
+                    <strong>LV3</strong>
+                    <span>원점수 40점</span>
+                </div>
+                <div>
+                    <strong>Mission</strong>
+                    <span>8 + 12 + 20점</span>
+                </div>
+            </div>
+            <p class="score-note">문제별 원점수는 LV1 1점, LV2 3점, LV3 8점입니다. 일반 문제 60점과 개발 미션 40점을 더해 총점 100점으로 계산됩니다.</p>
+        </section>
+    </main>
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>결과 | MBTI 궁합 코딩 퀴즈</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <main class="page">
+        <section class="card result-card">
+            <div class="kicker">Result</div>
+            <h1>{{ nickname }}님의 결과</h1>
+            <p class="lead">축하합니다! 당신은 MBTI 궁합 앱의 핵심 로직을 직접 이해하고 개발했습니다.</p>
+
+            <div class="result-grid">
+                <div><span>퀴즈 점수</span><strong>{{ quiz_score }} / {{ quiz_max_score }}점</strong></div>
+                <div><span>개발 점수</span><strong>{{ develop_score }} / {{ mission_max_score }}점</strong></div>
+                <div class="total-card"><span>총점</span><strong>{{ total_score }} / {{ total_max_score }}점</strong></div>
+                <div><span>현재 순위</span><strong>{{ current_rank or '-' }}위</strong></div>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>순위</th>
+                            <th>닉네임</th>
+                            <th>총점</th>
+                            <th>퀴즈</th>
+                            <th>개발</th>
+                            <th>LV3 정답</th>
+                            <th>미션</th>
+                            <th>소요시간</th>
+                            <th>제출 시간</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in rankings %}
+                            <tr class="{{ 'current-row' if item.id == result_id else '' }}">
+                                <td>{{ item.rank }}</td>
+                                <td>{{ item.nickname }}</td>
+                                <td>{{ item.total_score }}</td>
+                                <td>{{ item.quiz_score }}</td>
+                                <td>{{ item.develop_score }}</td>
+                                <td>{{ item.lv3_correct_count }}</td>
+                                <td>{{ item.selected_mission }}</td>
+                                <td>{{ item.elapsed_display }}</td>
+                                <td>{{ item.submitted_at.strftime('%H:%M:%S') }}</td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="9">아직 랭킹이 없습니다.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <a class="secondary-button" href="{{ url_for('index') }}">다시 시작</a>
+        </section>
+    </main>
+</body>
+</html>
