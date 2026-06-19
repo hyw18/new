@@ -49,6 +49,86 @@ body {
     max-width: 760px;
 }
 
+.review-card {
+    max-width: 900px;
+}
+
+.review-list {
+    display: grid;
+    gap: 18px;
+    margin-top: 28px;
+}
+
+.review-item {
+    padding: 22px;
+    border: 2px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+}
+
+.review-item.correct {
+    border-color: #bdeedd;
+}
+
+.review-item.wrong {
+    border-color: #ffd0df;
+}
+
+.review-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.review-heading > div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.review-status {
+    color: #b74368;
+}
+
+.review-item.correct .review-status {
+    color: #2a8064;
+}
+
+.answer-box,
+.review-explanation {
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 8px;
+    background: #f8f7fc;
+}
+
+.answer-box span,
+.review-explanation strong {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 900;
+}
+
+.answer-box pre {
+    overflow-x: auto;
+    margin: 0;
+    white-space: pre-wrap;
+}
+
+.correct-answer {
+    background: #edfdf8;
+}
+
+.review-explanation {
+    background: #fff4f8;
+}
+
+.review-explanation p {
+    margin: 0;
+    line-height: 1.7;
+}
+
 .kicker {
     display: inline-flex;
     margin-bottom: 10px;
@@ -141,6 +221,12 @@ textarea:focus {
 .secondary-button {
     margin-top: 20px;
     background: linear-gradient(135deg, #5cb8ee, #8ee4d0);
+}
+
+.result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
 }
 
 .score-grid,

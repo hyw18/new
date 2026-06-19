@@ -13,11 +13,22 @@
             <h1>MBTI 앱 코딩 퀴즈</h1>
             <p class="lead">Flask와 파이썬 문법을 퀴즈로 풀고, MBTI 앱의 핵심 로직을 직접 개발해보세요.</p>
 
-            <form method="post" class="start-form">
+            {% if error %}
+                <div class="feedback wrong">
+                    <strong>응시할 수 없습니다.</strong>
+                    <p>{{ error }}</p>
+                </div>
+            {% endif %}
+
+            <form method="post" class="start-form" data-attempt-locked="{{ 'true' if attempt_locked else 'false' }}">
                 <label for="nickname">닉네임</label>
                 <input id="nickname" name="nickname" type="text" placeholder="예: 하람" maxlength="20" required>
                 <button type="submit" class="primary-button">퀴즈 시작</button>
             </form>
+
+            {% if result_available %}
+                <a class="secondary-button" href="{{ url_for('review') }}">결과 확인</a>
+            {% endif %}
 
             <div class="score-grid" aria-label="점수 체계">
                 <div>
@@ -40,5 +51,15 @@
             <p class="score-note">문제별 원점수는 LV1 1점, LV2 3점, LV3 8점입니다. 일반 문제 60점과 개발 미션 40점을 더해 총점 100점으로 계산됩니다.</p>
         </section>
     </main>
+    <script>
+        const startForm = document.querySelector('.start-form');
+
+        if (startForm?.dataset.attemptLocked === 'true') {
+            startForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                window.alert('이 IP에서는 이미 응시했습니다. 새 답변을 제출할 수 없습니다.');
+            });
+        }
+    </script>
 </body>
 </html>

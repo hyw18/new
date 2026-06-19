@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>문제별 결과 | MBTI 궁합 코딩 퀴즈</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <main class="page review-page">
+        <section class="card review-card">
+            <div class="kicker">Answer Review</div>
+            <h1>{{ nickname }}님의 문제별 결과</h1>
+            <p class="lead">퀴즈 점수 {{ quiz_score }} / {{ quiz_max_score }}점</p>
+
+            <div class="review-list">
+                {% for item in review_items %}
+                    <article class="review-item {{ 'correct' if item.is_correct else 'wrong' }}">
+                        <div class="review-heading">
+                            <div>
+                                <span class="badge {{ item.problem.level|lower }}">{{ item.problem.level }}</span>
+                                <strong>{{ item.number }}. {{ item.problem.title }}</strong>
+                            </div>
+                            <strong class="review-status">
+                                {% if item.is_correct %}정답{% elif item.is_answered %}오답{% else %}미응답{% endif %}
+                            </strong>
+                        </div>
+
+                        <p class="question">{{ item.problem.question|replace('\n', '<br>')|safe }}</p>
+                        <div class="answer-box">
+                            <span>내 답안</span>
+                            <pre><code>{{ item.submitted_answer or '제출하지 않음' }}</code></pre>
+                        </div>
+
+                        {% if not item.is_correct %}
+                            <div class="answer-box correct-answer">
+                                <span>정답</span>
+                                <pre><code>{{ item.problem.answer }}</code></pre>
+                            </div>
+                            <div class="review-explanation">
+                                <strong>해설</strong>
+                                <p>{{ item.problem.explanation }}</p>
+                            </div>
+                        {% endif %}
+                    </article>
+                {% endfor %}
+            </div>
+
+            <div class="result-actions">
+                <a class="secondary-button" href="{{ url_for('result') }}">랭킹으로 돌아가기</a>
+                <a class="secondary-button" href="{{ url_for('index') }}">홈으로</a>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

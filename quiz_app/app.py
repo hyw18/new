@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 import ast
+from ipaddress import ip_address
 import json
 from pathlib import Path
-import random
 import re
 import site
 import subprocess
@@ -24,9 +24,11 @@ app = Flask(__name__)
 app.secret_key = "coding-quiz-exhibition-secret"
 
 RANKINGS = []
+IP_ATTEMPTS = {}
+SERVER_RUN_ID = uuid4().hex
 MAX_RANKINGS = 100
 QUIZ_TIME_LIMIT_SECONDS = 30 * 60
-MAX_HINTS = 3
+MAX_HINTS = 5
 QUIZ_MAX_SCORE = sum(problem["score"] for problem in PROBLEMS)
 MISSION_MAX_SCORE = sum(mission["score"] for mission in MISSIONS.values())
 TOTAL_MAX_SCORE = QUIZ_MAX_SCORE + MISSION_MAX_SCORE
@@ -39,8 +41,22 @@ ALLOWED_IMPORT_LINES = {
 SAFE_CODE_TIMEOUT_SECONDS = 2
 
 
-def reset_progress(nickname):
+def get_client_ip():
+    raw_address = request.remote_addr or "unknown"
+    try:
+        address = ip_address(raw_address)
+    except ValueError:
+        return raw_address
+    if address.version == 6 and address.ipv4_mapped:
+        return str(address.ipv4_mapped)
+    return str(address)
+
+
+def reset_progress(nickname, client_ip):
+    attempt_id = uuid4().hex
     session.clear()
+    session["server_run_id"] = SERVER_RUN_ID
+    session["attempt_id"] = attempt_id
     session["nickname"] = nickname
     session["quiz_index"] = 0
     session["quiz_score"] = 0
@@ -58,6 +74,25 @@ def reset_progress(nickname):
     session["develop_scores"] = {}
     session["develop_passed_ids"] = []
     session["result_id"] = ""
+    IP_ATTEMPTS[client_ip] = attempt_id
+
+
+def has_current_attempt():
+    attempt_id = session.get("attempt_id")
+    return (
+        session.get("server_run_id") == SERVER_RUN_ID
+        and "nickname" in session
+        and attempt_id
+        and IP_ATTEMPTS.get(get_client_ip()) == attempt_id
+    )
+
+
+def current_attempt_url():
+    if session.get("result_id"):
+        return url_for("result")
+    if session.get("quiz_submitted"):
+        return url_for("develop")
+    return url_for("quiz")
 
 
 def get_quiz_started_at():
@@ -606,51 +641,33 @@ def get_elapsed_seconds():
     return max(0, int((datetime.now() - started_at).total_seconds()))
 
 
-def seed_guest_rankings():
-    if any(entry["id"].startswith("guest-") for entry in RANKINGS):
-        return
-
-    guest_totals = [95, 93, 90, 88, 81, 74, 64, 50, 33, 21]
-    rng = random.Random(20260618)
-    now = datetime.now()
-
-    for index, total_score in enumerate(guest_totals, start=1):
-        min_quiz_score = max(0, total_score - MISSION_MAX_SCORE)
-        max_quiz_score = min(QUIZ_MAX_SCORE, total_score)
-        quiz_score = rng.randint(min_quiz_score, max_quiz_score)
-        develop_score = total_score - quiz_score
-        elapsed_seconds = rng.randint(180, QUIZ_TIME_LIMIT_SECONDS - 1)
-
-        RANKINGS.append(
-            {
-                "id": f"guest-{index:02d}",
-                "nickname": f"게스트 {index:02d}",
-                "total_score": total_score,
-                "quiz_score": quiz_score,
-                "develop_score": develop_score,
-                "lv3_correct_count": rng.randint(0, 5),
-                "selected_mission": "A,B,C" if develop_score else "-",
-                "elapsed_seconds": elapsed_seconds,
-                "submitted_at": now - timedelta(seconds=(len(guest_totals) - index + 1) * 37),
-            }
-        )
-
-
-seed_guest_rankings()
-
-
 @app.route("/", methods=["GET", "POST"])
 def index():
+    client_ip = get_client_ip()
+    attempt_locked = client_ip in IP_ATTEMPTS
+    result_available = has_current_attempt() and bool(session.get("result_id"))
+
     if request.method == "POST":
+        if attempt_locked:
+            return render_template(
+                "index.html",
+                error="이 IP에서는 이미 응시했습니다. 서버가 재시작된 후 다시 응시할 수 있습니다.",
+                attempt_locked=True,
+                result_available=result_available,
+            ), 403
         nickname = request.form.get("nickname", "").strip() or "익명 개발자"
-        reset_progress(nickname)
+        reset_progress(nickname, client_ip)
         return redirect(url_for("quiz"))
-    return render_template("index.html")
+    return render_template(
+        "index.html",
+        attempt_locked=attempt_locked,
+        result_available=result_available,
+    )
 
 
 @app.route("/quiz", methods=["GET", "POST"])
 def quiz():
-    if "nickname" not in session:
+    if not has_current_attempt():
         return redirect(url_for("index"))
 
     if session.get("quiz_submitted"):
@@ -680,17 +697,19 @@ def quiz():
                 session.modified = True
             return redirect(url_for("quiz", index=quiz_index))
 
+        answered_ids = session.get("answered_problem_ids", [])
+        if problem["id"] in answered_ids:
+            return redirect(url_for("quiz", index=quiz_index))
+
         answer = request.form.get("answer", "")
         answers = session.get("answers", {})
         answers[problem["id"]] = answer
         session["answers"] = answers
 
-        answered_ids = session.get("answered_problem_ids", [])
         is_correct = grade_problem(problem, answer)
 
-        if problem["id"] not in answered_ids:
-            answered_ids.append(problem["id"])
-            session["answered_problem_ids"] = answered_ids
+        answered_ids.append(problem["id"])
+        session["answered_problem_ids"] = answered_ids
 
         correct_ids = session.get("correct_problem_ids", [])
         if is_correct and problem["id"] not in correct_ids:
@@ -715,6 +734,7 @@ def quiz():
         quiz_score=session.get("quiz_score", 0),
         quiz_max_score=QUIZ_MAX_SCORE,
         answered_ids=session.get("answered_problem_ids", []),
+        problem_is_answered=problem["id"] in session.get("answered_problem_ids", []),
         correct_ids=session.get("correct_problem_ids", []),
         problems=PROBLEMS,
         saved_answer=session.get("answers", {}).get(problem["id"], ""),
@@ -730,7 +750,7 @@ def quiz():
 
 @app.route("/develop", methods=["GET", "POST"])
 def develop():
-    if "nickname" not in session:
+    if not has_current_attempt():
         return redirect(url_for("index"))
     if not session.get("quiz_submitted"):
         if is_quiz_time_up():
@@ -792,7 +812,7 @@ def develop():
 
 @app.route("/result", methods=["POST"])
 def save_result():
-    if "nickname" not in session:
+    if not has_current_attempt():
         return redirect(url_for("index"))
 
     if not session.get("result_id"):
@@ -820,7 +840,7 @@ def save_result():
 
 @app.route("/result")
 def result():
-    if "nickname" not in session:
+    if not has_current_attempt():
         return redirect(url_for("index"))
 
     rankings = ranked_entries()
@@ -840,6 +860,38 @@ def result():
         result_id=result_id,
         current_rank=current_rank,
         rankings=rankings,
+    )
+
+
+@app.route("/review")
+def review():
+    if not has_current_attempt():
+        return redirect(url_for("index"))
+    if not session.get("result_id"):
+        return redirect(current_attempt_url())
+
+    answers = session.get("answers", {})
+    answered_ids = set(session.get("answered_problem_ids", []))
+    correct_ids = set(session.get("correct_problem_ids", []))
+    review_items = []
+
+    for number, problem in enumerate(PROBLEMS, start=1):
+        review_items.append(
+            {
+                "number": number,
+                "problem": problem,
+                "submitted_answer": answers.get(problem["id"], ""),
+                "is_answered": problem["id"] in answered_ids,
+                "is_correct": problem["id"] in correct_ids,
+            }
+        )
+
+    return render_template(
+        "review.html",
+        nickname=session.get("nickname", "익명 개발자"),
+        quiz_score=session.get("quiz_score", 0),
+        quiz_max_score=QUIZ_MAX_SCORE,
+        review_items=review_items,
     )
 
 
